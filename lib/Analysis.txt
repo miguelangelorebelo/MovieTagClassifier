@@ -1,0 +1,81 @@
+The dataset contains 1566 movies
+
+There is a clear class imbalence:
+cult          1033
+dramatic       167
+paranormal     366
+
+Number of incomplete instances (without text or tag): 0 
+Number of repeated instances: 13
+Number of cleaned instances: 1543
+
+An automatic class weight calculator was implemented in the trainer to deal with this. 
+For this I had to overwrite the original Trainer class from transformers.
+
+These are the lengths of the synopsis:
+count     1566.000000
+mean      5219.414432
+std       4800.731210
+min        781.000000
+25%       2587.500000
+50%       3909.000000
+75%       5890.000000
+max      48487.000000 -> this is Stranger Things (Note: I liked watching it)
+
+Max Sequence Length was set to 512. return_overflowing_tokens was used to support splitting long sequences into smaller chunks when tokenizing text inputs that exceed the specified max_length.
+Padding to shorter texts and truncation to longer texts is applied to ensure uniform sequence length
+
+
+I chose DistilBert model after testing between 3 light alternatives that I could exepriment quickly on my personal machine. So the models had to be light (low parameter count). I selected based on training runtime, inference speed and accuracy after 1 epoch training (2 times) on 10 randomly selected test samples that were not included in the training step. Here are some figures:
+
+	-> "distilbert-base-uncased": 1 epoch - 2 run test - 4Gb memory:
+			1m40s train
+			2s test
+
+			{'eval_loss': 0.8522891402244568, 'eval_accuracy': 0.6557377049180327, 'eval_runtime': 7.6695, 'eval_samples_per_second': 39.768, 'eval_steps_per_second': 10.04, 'epoch': 1.0}
+
+			{'train_runtime': 100.5623, 'train_samples_per_second': 12.112, 'train_steps_per_second': 0.378, 'train_loss': 0.8559406682064659, 'epoch': 1.0}
+
+			2 runs:
+
+			- Testing on test set: 100%|██████████| 20/20 [00:01<00:00, 11.81it/s]
+			{'accuracy': 0.85}
+			- Testing on test set: 100%|██████████| 20/20 [00:01<00:00, 10.31it/s]
+			{'accuracy': 0.75}
+
+
+	-> "huggingface/prunebert-base-uncased-6-finepruned-w-distil-mnli": 1 epoch - 2 runt test - 6Gb memory
+			3m77s train
+			4s test
+
+			{'eval_loss': 0.8605467677116394, 'eval_accuracy': 0.6262295081967213, 'eval_runtime': 12.398, 'eval_samples_per_second': 24.601, 'eval_steps_per_second': 6.211, 'epoch': 1.0}
+
+			{'train_runtime': 188.0149, 'train_samples_per_second': 6.478, 'train_steps_per_second': 0.202, 'train_loss': 0.8983565882632607, 'epoch': 1.0}
+
+			2 runs:
+
+			- Testing on test set: 100%|██████████| 20/20 [00:03<00:00,  5.71it/s]
+			{'accuracy': 0.65}
+			- Testing on test set: 100%|██████████| 20/20 [00:03<00:00,  5.15it/s]
+			{'accuracy': 0.7}
+
+	-> "huggingface/funnel-small": 1 epoch - 2 run test - 5.7Gb
+			3m40s train
+			3.7s test
+
+			{'eval_loss': 0.7845922708511353, 'eval_accuracy': 0.6524590163934426, 'eval_runtime': 20.6629, 'eval_samples_per_second': 14.761, 'eval_steps_per_second': 3.726, 'epoch': 1.0}
+
+			{'train_runtime': 219.3929, 'train_samples_per_second': 5.552, 'train_steps_per_second': 0.173, 'train_loss': 0.8490951939633018, 'epoch': 1.0}
+
+			2 runs:
+
+			- Testing on test set: 100%|██████████| 20/20 [00:04<00:00,  4.80it/s]
+			{'accuracy': 0.7}
+			- Testing on test set: 100%|██████████| 20/20 [00:03<00:00,  5.55it/s]
+			{'accuracy': 0.75}
+
+After that I changed the number of epochs to 3 to try getting better results. Since I'm running this on my GPU and it would take a while to train it inside a docker container running on CPU power, I already included the fine-tuned model for imediate use. But if you have the time to wait, you can trigger the train_routine.py at the beggining of the docker container after the creation of the db.
+
+I have the notebooks I used to sketch the idea ("exploration.ipynb" and "test_workflow.ipynb") plus the "exploration bonus.ipynb" notebook which has an approached I tried to tackle multilabel classification. With more time I think I could nail that, but I hope you like it.
+
+
